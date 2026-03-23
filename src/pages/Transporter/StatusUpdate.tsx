@@ -18,19 +18,17 @@ const StatusUpdate: React.FC = () => {
     setError('');
 
     try {
-      try {
-        await api.post('/status/', null, {
-          params: {
-            shipment_id: shipmentId,
-            status: status,
-            location: city, // Sending 'location' to temporarily satisfy the backend
-            updated_by: localStorage.getItem('user_id')
-          }
-        });
-      } catch (backendErr) {
-        console.warn("Backend 500 error caught, but proceeding.", backendErr);
-      }
+      // 100% clean API call, using 'city' instead of 'location'
+      await api.post('/status/', null, {
+        params: {
+          shipment_id: shipmentId,
+          status: status,
+          city: city, 
+          updated_by: localStorage.getItem('user_id')
+        }
+      });
 
+      // Route back to the dashboard after updating
       navigate('/transporter');
     } catch (err: any) {
       console.error(err);
