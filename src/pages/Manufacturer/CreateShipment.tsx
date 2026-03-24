@@ -1,179 +1,156 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const CreateShipment: React.FC = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [profileData, setProfileData] = useState<any>(null);
+  const [useDefaultAddress, setUseDefaultAddress] = useState(false);
 
-  // Form State matching the ShipmentCreate schema
   const [formData, setFormData] = useState({
     pickup_address: '',
     pickup_city: '',
     pickup_contact: '',
     receiver_name: '',
+    receiver_phone: '',
     receiver_address: '',
     receiver_city: '',
-    receiver_phone: '',
-    goods_description: '',
-    quantity: '',
     weight: '',
+    item_type: 'General',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // 1. Fetch the user's saved address from the new Backend route
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const userId = localStorage.getItem('user_id');
+        if (userId) {
+          const response = await api.get(`/auth/profile/${userId}`);
+          setProfileData(response.data);
+        }
+      } catch (err) {
+        console.error("Could not fetch profile for auto-fill", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // 2. Handle the "Same as before" Checkbox
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setUseDefaultAddress(checked);
+
+    if (checked && profileData) {
+      setFormData(prev => ({
+        ...prev,
+        pickup_address: profileData.street || '',
+        pickup_city: profileData.city || '',
+        pickup_contact: profileData.full_name || '',
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        pickup_address: '',
+        pickup_city: '',
+        pickup_contact: '',
+      }));
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError('');
-
-    const manufacturerId = localStorage.getItem('user_id');
-
-    if (!manufacturerId) {
-      setError('Error: Manufacturer ID missing from session. Please log out and back in.');
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      // Format the payload exactly as the backend expects
-      const payload = {
-        pickup_address: formData.pickup_address,
-        pickup_city: formData.pickup_city,
-        pickup_contact: formData.pickup_contact,
-        receiver_name: formData.receiver_name,
-        receiver_address: formData.receiver_address,
-        receiver_city: formData.receiver_city,
-        receiver_phone: formData.receiver_phone,
-        goods_description: formData.goods_description || "N/A", 
-        quantity: parseInt(formData.quantity) || 1, 
-        weight: parseFloat(formData.weight) || 1.0, 
-        manufacturer_id: manufacturerId,
-        shipment_code: `SHP-${Math.floor(Math.random() * 10000)}` // Forcing a string here just in case FastAPI is being strict
-      };
-
-      console.log("SENDING PAYLOAD TO BACKEND:", payload);
-
-      await api.post('/shipments/', payload);
-      
-      // On success, kick them back to the list
-      navigate('/manufacturer/shipments');
-    } catch (err: any) {
-      console.error("FULL BACKEND ERROR:", err.response?.data);
-      
-      // BULLETPROOF ERROR PARSING - Guaranteed to never crash React again
-      const detail = err.response?.data?.detail;
-      
-      if (typeof detail === 'string') {
-        setError(detail);
-      } else if (Array.isArray(detail)) {
-        const badField = detail[0]?.loc?.[detail[0]?.loc?.length - 1] || 'unknown field';
-        setError(`Backend rejected "${badField}": ${detail[0]?.msg}`);
-      } else if (detail && typeof detail === 'object') {
-        // If it's an object, stringify it so React can actually print it
-        setError(JSON.stringify(detail));
-      } else {
-        setError(err.message || 'Failed to create shipment. Check your inputs.');
-      }
-    } finally {
+      const userId = localStorage.getItem('user_id');
+      await api.post('/shipments/create', { ...formData, manufacturer_id: userId });
+      navigate('/manufacturer'); // Back to dashboard
+    } catch (err) {
+      alert("Error creating shipment. Please check your connection.");
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Create New Shipment</h1>
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
-          &larr; Back
-        </button>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+        <div className="bg-gray-900 p-6 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-white">Create New Shipment</h1>
+          <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition">← Back</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-10">
+          
+          {/* Section 1: Pickup Information */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h2 className="text-lg font-bold text-gray-700">Pickup Information</h2>
+              
+              <label className="flex items-center space-x-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={useDefaultAddress} 
+                  onChange={handleCheckboxChange}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-blue-600 group-hover:text-blue-800 transition">Use my registered address</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Pickup Address *</label>
+                <input name="pickup_address" value={formData.pickup_address} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none transition" placeholder="Street Name / Factory Area" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-600 mb-1">Pickup City *</label>
+                  <input name="pickup_city" value={formData.pickup_city} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-600 mb-1">Contact Person *</label>
+                  <input name="pickup_contact" value={formData.pickup_contact} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Receiver Information */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-bold text-gray-700 border-b pb-2">Receiver Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Receiver Name *</label>
+                <input name="receiver_name" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Receiver Phone *</label>
+                <input name="receiver_phone" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-bold text-gray-600 mb-1">Receiver Full Address *</label>
+              <input name="receiver_address" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-bold text-gray-600 mb-1">Receiver City *</label>
+              <input name="receiver_city" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full bg-blue-600 text-white py-4 rounded-lg font-extrabold text-lg hover:bg-blue-700 transition shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Creating Shipment...' : 'Finalize Shipment'}
+          </button>
+        </form>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md border border-red-200 font-mono text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 space-y-8">
-        
-        {/* Origin / Pickup Details */}
-        <div>
-          <h3 className="text-lg leading-6 font-medium text-[#1B2A4A] mb-4">Pickup Information</h3>
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Pickup Address *</label>
-              <input type="text" name="pickup_address" required value={formData.pickup_address} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Pickup City *</label>
-              <input type="text" name="pickup_city" required value={formData.pickup_city} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Contact at Pickup *</label>
-              <input type="text" name="pickup_contact" required value={formData.pickup_contact} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-          </div>
-        </div>
-
-        <hr className="border-gray-200" />
-
-        {/* Destination / Receiver Details */}
-        <div>
-          <h3 className="text-lg leading-6 font-medium text-[#1B2A4A] mb-4">Receiver Information</h3>
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Receiver Name *</label>
-              <input type="text" name="receiver_name" required value={formData.receiver_name} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Receiver Phone *</label>
-              <input type="text" name="receiver_phone" required value={formData.receiver_phone} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Receiver Address *</label>
-              <input type="text" name="receiver_address" required value={formData.receiver_address} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Receiver City *</label>
-              <input type="text" name="receiver_city" required value={formData.receiver_city} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-          </div>
-        </div>
-
-        <hr className="border-gray-200" />
-
-        {/* Goods Details */}
-        <div>
-          <h3 className="text-lg leading-6 font-medium text-[#1B2A4A] mb-4">Package Details</h3>
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-gray-700">Goods Description</label>
-              <textarea name="goods_description" rows={2} value={formData.goods_description} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Quantity (Units) *</label>
-              <input type="number" name="quantity" min="1" required value={formData.quantity} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Weight (kg) *</label>
-              <input type="number" step="0.1" min="0.1" name="weight" required value={formData.weight} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm border p-2" />
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-5 flex justify-end">
-          <button type="button" onClick={() => navigate(-1)} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D97706] mr-3">
-            Cancel
-          </button>
-          <button type="submit" disabled={isSubmitting} className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#D97706] hover:bg-[#b46205] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D97706] disabled:opacity-50">
-            {isSubmitting ? 'Saving...' : 'Create Shipment'}
-          </button>
-        </div>
-      </form>
     </div>
   );
 };

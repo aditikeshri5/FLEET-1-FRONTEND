@@ -10,7 +10,6 @@ const Signup: React.FC = () => {
     password: '',
     role: 'manufacturer', 
     company_name: '',
-    // 👇 NEW DETAILED ADDRESS FIELDS
     street: '',
     city: '',
     state: '',
@@ -18,6 +17,7 @@ const Signup: React.FC = () => {
   });
 
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,56 +25,74 @@ const Signup: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+
     try {
-      await api.post('/auth/signup', formData);
-      alert("Registration Successful!");
-      navigate('/login');
+      const response = await api.post('/auth/signup', formData);
+      
+      // CRITICAL: Store these so ProtectedRoute doesn't block you
+      localStorage.setItem('user_id', response.data.user_id);
+      localStorage.setItem('role', formData.role);
+      localStorage.setItem('full_name', formData.full_name);
+
+      // REDIRECT: These match your App.tsx paths exactly
+      if (formData.role === 'operations') navigate('/operations');
+      else if (formData.role === 'manufacturer') navigate('/manufacturer');
+      else if (formData.role === 'transporter') navigate('/transporter');
+      else if (formData.role === 'admin') navigate('/admin');
+      else navigate('/');
+
     } catch (err: any) {
       setError(err.response?.data?.detail || "Signup failed");
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-full max-w-md space-y-4">
-        <h2 className="text-2xl font-bold text-center">Create Account</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-800">Create Account</h2>
         
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        {error && <p className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded">{error}</p>}
 
-        <input name="full_name" placeholder="Full Name" onChange={handleChange} required className="w-full border p-2 rounded" />
-        <input name="phone" placeholder="Phone Number" onChange={handleChange} required className="w-full border p-2 rounded" />
-        <input name="password" type="password" placeholder="Password" onChange={handleChange} required className="w-full border p-2 rounded" />
+        <input name="full_name" placeholder="Full Name" onChange={handleChange} required className="w-full border p-2 rounded outline-none focus:border-blue-500" />
+        <input name="phone" placeholder="Phone Number" onChange={handleChange} required className="w-full border p-2 rounded outline-none focus:border-blue-500" />
+        <input name="password" type="password" placeholder="Password" onChange={handleChange} required className="w-full border p-2 rounded outline-none focus:border-blue-500" />
 
-        <select name="role" value={formData.role} onChange={handleChange} className="w-full border p-2 rounded bg-white">
+        <select name="role" value={formData.role} onChange={handleChange} className="w-full border p-2 rounded bg-white outline-none">
           <option value="manufacturer">Manufacturer</option>
           <option value="transporter">Transporter</option>
           <option value="operations">Operations</option>
           <option value="admin">Admin</option>
         </select>
 
-        <input name="company_name" placeholder="Company Name" onChange={handleChange} required className="w-full border p-2 rounded" />
+        <input name="company_name" placeholder="Company Name" onChange={handleChange} required className="w-full border p-2 rounded outline-none focus:border-blue-500" />
 
-        {/* 👇 THE FOUR ADDRESS FIELDS (Only for Manu/Trans) 👇 */}
         {(formData.role === 'manufacturer' || formData.role === 'transporter') && (
-          <div className="space-y-4 pt-2">
-            <p className="text-sm font-semibold text-gray-600 border-b pb-1">Operating Address</p>
-            <input name="street" placeholder="Street / Area" onChange={handleChange} required className="w-full border p-2 rounded" />
+          <div className="space-y-4 pt-2 border-t mt-2">
+            <p className="text-xs font-bold text-gray-500 uppercase">Operating Address</p>
+            <input name="street" placeholder="Street / Area" onChange={handleChange} required className="w-full border p-2 rounded outline-none" />
             
             <div className="grid grid-cols-2 gap-2">
-              <input name="city" placeholder="City" onChange={handleChange} required className="border p-2 rounded" />
-              <input name="state" placeholder="State" onChange={handleChange} required className="border p-2 rounded" />
+              <input name="city" placeholder="City" onChange={handleChange} required className="border p-2 rounded outline-none" />
+              <input name="state" placeholder="State" onChange={handleChange} required className="border p-2 rounded outline-none" />
             </div>
             
-            <input name="pincode" placeholder="Pincode" onChange={handleChange} required className="w-full border p-2 rounded" />
+            <input name="pincode" placeholder="Pincode" onChange={handleChange} required className="w-full border p-2 rounded outline-none" />
           </div>
         )}
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 mt-4">
-          Sign Up
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 mt-4 disabled:bg-blue-300 transition-colors"
+        >
+          {isSubmitting ? 'Signing up...' : 'Sign Up'}
         </button>
       </form>
     </div>
   );
 };
 
-export default Signup;
+export default Signup; // <--- MAKE SURE THIS IS HERE
