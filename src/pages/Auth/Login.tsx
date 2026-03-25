@@ -1,101 +1,258 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { Phone, Lock, Eye, EyeOff } from 'lucide-react';
+import { auth } from '../../firebase';
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from 'firebase/auth';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+    confirmationResult: any;
+  }
+}
 
 const Login: React.FC = () => {
+  const [loginType, setLoginType] = useState<'password' | 'otp'>('password');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // 👁️ NEW
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 🔐 PASSWORD LOGIN
+  // 🔐 PASSWORD LOGIN
+  // 🔐 PASSWORD LOGIN
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
       await login(phone, password);
-      // After successful login, the AuthContext saves the role to localStorage
-      const role = localStorage.getItem('user_role');
-      if (role) {
-        navigate(`/${role}`);
+      
+      // 🚨 FIX: Get the role from the complete saved user object
+      const savedUserStr = localStorage.getItem('fleet_user_data');
+      if (savedUserStr) {
+        const userData = JSON.parse(savedUserStr);
+        if (userData.role) {
+          navigate(`/${userData.role}`);
+          return; // Stop here, successful login
+        }
       }
+      
+      setError("Login successful, but role not found in user data.");
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid phone or password');
+      console.error("Login Error details:", err);
+      setError(err.response?.data?.detail || 'Invalid phone or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 📱 SEND OTP
+  const handleSendOtp = async () => {
+    try {
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(
+          auth,
+          'recaptcha-container',
+          { size: 'invisible' }
+        );
+      }
+
+      const appVerifier = window.recaptchaVerifier;
+
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        '+91' + phone,
+        appVerifier
+      );
+
+      window.confirmationResult = confirmationResult;
+      setOtpSent(true);
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to send OTP');
+    }
+  };
+
+  // ✅ VERIFY OTP
+  const handleVerifyOtp = async () => {
+    try {
+      const result = await window.confirmationResult.confirm(otp);
+      console.log('Logged in:', result.user.phoneNumber);
+
+      navigate('/manufacturer');
+    } catch {
+      setError('Invalid OTP');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-[Inter]">
+
+      {/* HEADER */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <h2 className="mt-6 text-4xl font-extrabold tracking-wider">
           <span className="text-[#1B2A4A]">FLEET</span>
-          <span className="text-[#D97706]">-1</span>
+          <span className="text-[#D97706]">1</span>
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+
+        <p className="mt-3 text-sm text-gray-500 tracking-wide">
           Logistics Aggregator ERP
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm"
-                />
-              </div>
-            </div>
+      {/* CARD */}
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-10 px-6 shadow-2xl rounded-2xl sm:px-10 border border-gray-100">
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <div className="mt-1">
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D97706] focus:border-[#D97706] sm:text-sm"
-                />
-              </div>
-            </div>
+          {/* TOGGLE */}
+          <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setLoginType('password')}
+              className={`flex-1 py-2 rounded-md text-sm ${
+                loginType === 'password'
+                  ? 'bg-white shadow font-medium'
+                  : 'text-gray-500'
+              }`}
+            >
+              Password Login
+            </button>
 
-            <div>
+            <button
+              onClick={() => setLoginType('otp')}
+              className={`flex-1 py-2 rounded-md text-sm ${
+                loginType === 'otp'
+                  ? 'bg-white shadow font-medium'
+                  : 'text-gray-500'
+              }`}
+            >
+              OTP Login
+            </button>
+          </div>
+
+          {/* ERROR */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
+          {/* PHONE */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-gray-600">Phone</label>
+
+            <div className="group mt-1 flex items-center border border-gray-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-[#D97706]">
+              <Phone className="text-[#1B2A4A] group-focus-within:text-[#D97706]" size={18} />
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full p-2 outline-none bg-transparent"
+                placeholder="Enter phone number"
+              />
+            </div>
+          </div>
+
+          {/* PASSWORD LOGIN */}
+          {/* PASSWORD LOGIN */}
+          {loginType === 'password' && (
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Password</label>
+                
+                <div className="group mt-1 flex items-center border border-gray-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-[#D97706] bg-white">
+                  <Lock className="text-[#1B2A4A] group-focus-within:text-[#D97706]" size={18} />
+                  
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="flex-1 p-2 outline-none bg-transparent"
+                    placeholder="Enter password"
+                    required
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-[#D97706] focus:outline-none p-1"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                <div className="text-right mt-2">
+                  <span className="text-sm text-[#D97706] cursor-pointer hover:underline font-medium">
+                    Forgot Password?
+                  </span>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#D97706] hover:bg-[#b46205] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D97706] disabled:opacity-50"
+                disabled={isLoading || !phone || !password}
+                className="w-full py-3 mt-4 bg-[#D97706] text-white font-bold rounded-lg hover:bg-[#c46a05] disabled:opacity-50 transition-colors shadow-md active:scale-[0.98]"
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
-            </div>
-          </form>
+            </form>
+          )}
+          {/* OTP LOGIN */}
+          {loginType === 'otp' && (
+            <div className="space-y-4">
 
+              {!otpSent ? (
+                <button
+                  onClick={handleSendOtp}
+                  className="w-full py-2 bg-[#D97706] text-white rounded-lg"
+                >
+                  Send OTP
+                </button>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-full border p-2 rounded-lg"
+                  />
+
+                  <button
+                    onClick={handleVerifyOtp}
+                    className="w-full py-2 bg-[#D97706] text-white rounded-lg"
+                  >
+                    Verify OTP
+                  </button>
+                </>
+              )}
+
+              <div id="recaptcha-container"></div>
+            </div>
+          )}
+
+          {/* SIGNUP */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-500">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-[#D97706] hover:text-[#b46205]">
+              <Link to="/signup" className="text-[#D97706] font-semibold">
                 Sign up
               </Link>
             </p>
           </div>
+
         </div>
       </div>
     </div>

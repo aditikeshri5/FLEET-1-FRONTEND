@@ -9,18 +9,27 @@ const CreateShipment: React.FC = () => {
   const [useDefaultAddress, setUseDefaultAddress] = useState(false);
 
   const [formData, setFormData] = useState({
+    // Pickup info
     pickup_address: '',
     pickup_city: '',
+    pickup_pincode: '',
     pickup_contact: '',
+
+    // Receiver info
     receiver_name: '',
     receiver_phone: '',
     receiver_address: '',
     receiver_city: '',
-    weight: '',
-    item_type: 'General',
+    receiver_pincode: '',
+
+    // Shipment details
+    goods_description: '',
+    quantity: 1,           
+    weight: '',            
+    shipment_code: '',     
   });
 
-  // 1. Fetch the user's saved address from the new Backend route
+  // 1. Fetch the user's saved profile once when page loads
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -36,7 +45,7 @@ const CreateShipment: React.FC = () => {
     fetchProfile();
   }, []);
 
-  // 2. Handle the "Same as before" Checkbox
+  // 2. Handle the "Use Registered Address" Checkbox
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     setUseDefaultAddress(checked);
@@ -46,6 +55,7 @@ const CreateShipment: React.FC = () => {
         ...prev,
         pickup_address: profileData.street || '',
         pickup_city: profileData.city || '',
+        pickup_pincode: profileData.pincode || '',
         pickup_contact: profileData.full_name || '',
       }));
     } else {
@@ -53,6 +63,7 @@ const CreateShipment: React.FC = () => {
         ...prev,
         pickup_address: '',
         pickup_city: '',
+        pickup_pincode: '',
         pickup_contact: '',
       }));
     }
@@ -67,10 +78,21 @@ const CreateShipment: React.FC = () => {
     setIsSubmitting(true);
     try {
       const userId = localStorage.getItem('user_id');
-      await api.post('/shipments/create', { ...formData, manufacturer_id: userId });
-      navigate('/manufacturer'); // Back to dashboard
+      
+      // Ensure numeric fields are correctly typed before sending
+      const submissionData = {
+        ...formData,
+        manufacturer_id: userId,
+        weight: parseFloat(formData.weight) || 0,
+        quantity: parseInt(formData.quantity.toString()) || 1,
+      };
+
+      await api.post('/shipments/create', submissionData);
+      alert("Shipment Created Successfully!");
+      navigate('/manufacturer'); 
     } catch (err) {
-      alert("Error creating shipment. Please check your connection.");
+      console.error(err);
+      alert("Error creating shipment. Please check the console for details.");
       setIsSubmitting(false);
     }
   };
@@ -89,7 +111,6 @@ const CreateShipment: React.FC = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center border-b pb-2">
               <h2 className="text-lg font-bold text-gray-700">Pickup Information</h2>
-              
               <label className="flex items-center space-x-2 cursor-pointer group">
                 <input 
                   type="checkbox" 
@@ -106,10 +127,14 @@ const CreateShipment: React.FC = () => {
                 <label className="text-sm font-bold text-gray-600 mb-1">Pickup Address *</label>
                 <input name="pickup_address" value={formData.pickup_address} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none transition" placeholder="Street Name / Factory Area" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col">
                   <label className="text-sm font-bold text-gray-600 mb-1">Pickup City *</label>
                   <input name="pickup_city" value={formData.pickup_city} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-bold text-gray-600 mb-1">Pickup Pincode *</label>
+                  <input name="pickup_pincode" value={formData.pickup_pincode} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" placeholder="e.g. 302026" />
                 </div>
                 <div className="flex flex-col">
                   <label className="text-sm font-bold text-gray-600 mb-1">Contact Person *</label>
@@ -120,32 +145,57 @@ const CreateShipment: React.FC = () => {
           </div>
 
           {/* Section 2: Receiver Information */}
-          <div className="space-y-6">
+          <div className="space-y-6 mt-10">
             <h2 className="text-lg font-bold text-gray-700 border-b pb-2">Receiver Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col">
                 <label className="text-sm font-bold text-gray-600 mb-1">Receiver Name *</label>
-                <input name="receiver_name" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+                <input name="receiver_name" value={formData.receiver_name} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
               </div>
               <div className="flex flex-col">
                 <label className="text-sm font-bold text-gray-600 mb-1">Receiver Phone *</label>
-                <input name="receiver_phone" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+                <input name="receiver_phone" value={formData.receiver_phone} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
               </div>
             </div>
             <div className="flex flex-col">
               <label className="text-sm font-bold text-gray-600 mb-1">Receiver Full Address *</label>
-              <input name="receiver_address" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+              <input name="receiver_address" value={formData.receiver_address} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
             </div>
-            <div className="flex flex-col">
-              <label className="text-sm font-bold text-gray-600 mb-1">Receiver City *</label>
-              <input name="receiver_city" onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Receiver City *</label>
+                <input name="receiver_city" value={formData.receiver_city} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Receiver Pincode *</label>
+                <input name="receiver_pincode" value={formData.receiver_pincode} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" placeholder="e.g. 110001" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Shipment Details */}
+          <div className="space-y-6 mt-10">
+            <h2 className="text-lg font-bold text-gray-700 border-b pb-2">Shipment Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Goods Description *</label>
+                <input name="goods_description" value={formData.goods_description} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" placeholder="e.g. Electronics, Textiles" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Quantity (Boxes/Items) *</label>
+                <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} required min="1" className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-bold text-gray-600 mb-1">Total Weight (kg) *</label>
+                <input type="number" step="0.01" name="weight" value={formData.weight} onChange={handleChange} required className="border-2 border-gray-100 p-2 rounded focus:border-blue-500 outline-none" placeholder="e.g. 250.5" />
+              </div>
             </div>
           </div>
 
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full bg-blue-600 text-white py-4 rounded-lg font-extrabold text-lg hover:bg-blue-700 transition shadow-lg active:scale-95 disabled:opacity-50"
+            className="w-full mt-8 bg-blue-600 text-white py-4 rounded-lg font-extrabold text-lg hover:bg-blue-700 transition shadow-lg active:scale-95 disabled:opacity-50"
           >
             {isSubmitting ? 'Creating Shipment...' : 'Finalize Shipment'}
           </button>
@@ -153,6 +203,6 @@ const CreateShipment: React.FC = () => {
       </div>
     </div>
   );
-};
+}; // 🚨 This curly brace was missing!
 
 export default CreateShipment;

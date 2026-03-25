@@ -17,40 +17,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    const userRole = localStorage.getItem('user_role');
-    const userName = localStorage.getItem('user_name');
-    const company = localStorage.getItem('company');
-
-    if (userId && userRole) {
-      setUser({
-        id: userId,
-        role: userRole as User['role'],
-        full_name: userName || '',
-        company_name: company || '',
-        phone: '', 
-      });
+    // 1. Try to get the complete user object from memory
+    const savedUser = localStorage.getItem('fleet_user_data');
+    
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Failed to parse saved user", e);
+        localStorage.clear();
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (phone: string, password: string) => {
+    // 2. The backend /login now returns ID, Role, and ALL address fields
     const loginRes = await api.post('/auth/login', { phone, password });
-    const userId = loginRes.data.user;
+    const userData: User = loginRes.data;
 
-    const profileRes = await api.get(`/users/${userId}`);
-    const profileData: User = profileRes.data;
+    // 3. Save EVERYTHING so the auto-fill has data to work with
+    localStorage.setItem('user_id', userData.id);
+    localStorage.setItem('fleet_user_data', JSON.stringify(userData));
 
-    localStorage.setItem('user_id', profileData.id);
-    localStorage.setItem('user_role', profileData.role);
-    localStorage.setItem('user_name', profileData.full_name);
-    localStorage.setItem('company', profileData.company_name);
-
-    setUser(profileData);
+    setUser(userData);
   };
 
   const signup = async (data: any) => {
     await api.post('/auth/signup', data);
+    // Auto-login after signup to fetch the profile
     await login(data.phone, data.password);
   };
 
@@ -67,7 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// THIS IS THE PART IT WAS COMPLAINING ABOUT MISSING!
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
