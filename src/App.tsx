@@ -24,6 +24,7 @@ import AssignTransporter from './pages/Operations/AssignTransporter';
 import CreateHandover from './pages/Operations/CreateHandover';
 
 // Admin Pages
+import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserManagement from './pages/Admin/UserManagement';
 import TransporterNetwork from './pages/Admin/TransporterNetwork';
 
@@ -62,6 +63,7 @@ const App = () => {
             </Route>
 
             {/* Admin Routes */}
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin" element={<UserManagement />} />
               <Route path="/admin/transporters" element={<TransporterNetwork />} />
