@@ -32,7 +32,7 @@ const Sidebar: React.FC = () => {
   return (
     <div className="w-60 bg-[#1B2A4A] text-white flex flex-col h-full shadow-lg">
       <div className="p-6 text-2xl font-bold tracking-wider border-b border-gray-700">
-        <span className="text-[#D97706]">FLEET</span>-1
+        <span className="text-[#D97706]">FLEET</span>1
       </div>
       <nav className="flex-1 mt-6">
         <ul>
