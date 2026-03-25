@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 
-const AdminLogin: React.FC = () => {
+const OperationsLogin: React.FC = () => {
   const navigate = useNavigate();
 
   const [phone, setPhone] = useState('');
@@ -26,8 +26,8 @@ const AdminLogin: React.FC = () => {
       const user = response.data;
 
       // ✅ Check role strictly
-      if (user.role !== 'admin') {
-        setError('Access denied: Not an Admin');
+      if (user.role !== 'operations') {
+        setError('Access denied: Not Operations');
         setIsSubmitting(false);
         return;
       }
@@ -38,7 +38,7 @@ const AdminLogin: React.FC = () => {
       localStorage.setItem('full_name', user.full_name);
 
       // ✅ Redirect
-      navigate('/admin/dashboard');
+      navigate('/operations/dashboard');
 
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -50,7 +50,7 @@ const AdminLogin: React.FC = () => {
     <div className="min-h-screen flex justify-center items-center bg-gray-100">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded-xl shadow-md w-96 space-y-4">
 
-        <h2 className="text-2xl font-bold text-center">Admin Login</h2>
+        <h2 className="text-2xl font-bold text-center">Operations Login</h2>
 
         {error && <div className="text-red-500 text-sm">{error}</div>}
 
@@ -80,9 +80,9 @@ const AdminLogin: React.FC = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg"
+          className="w-full bg-green-600 text-white py-2 rounded-lg"
         >
-          {isSubmitting ? 'Logging in...' : 'Login as Admin'}
+          {isSubmitting ? 'Logging in...' : 'Login as Operations'}
         </button>
 
       </form>
@@ -90,4 +90,4 @@ const AdminLogin: React.FC = () => {
   );
 };
 
-export default AdminLogin;
+export default OperationsLogin;
