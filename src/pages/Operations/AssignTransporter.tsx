@@ -127,18 +127,20 @@ const AssignTransporter: React.FC = () => {
         </div>
       )}
 
-      {/* Shipment Preview Card */}
+      {/* Shipment Preview */}
       {shipment && (
         <div className="bg-gray-900 text-white rounded-lg p-6 shadow-md">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Active Shipment</p>
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-mono font-bold">{shipment.shipment_code}</h2>
-            <p className="text-sm font-medium">{shipment.pickup_city} to {shipment.receiver_city}</p>
+            <p className="text-sm font-medium">
+              {shipment.pickup_city} to {shipment.receiver_city}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Selection Form */}
+      {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg border border-gray-200 p-8 space-y-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
