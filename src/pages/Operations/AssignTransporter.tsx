@@ -14,31 +14,58 @@ const AssignTransporter: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch initial data
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch specific shipment details
-        const shipRes = await api.get('/shipments/');
-        const foundShipment = shipRes.data.find((s: any) => s.id === shipmentId);
-        if (!foundShipment) throw new Error("Shipment not found");
-        setShipment(foundShipment);
+        setLoading(true); // Ensure loading starts true
 
-        // Fetch the list of transporters (now unfiltered from backend)
-        const transRes = await api.get('/transporters/');
-        setTransporters(transRes.data);
+        // 1. Fetch Shipments
+        const shipRes = await api.get('/shipments');
+        
+        // 🚨 SAFETY CHECK: Ensure backend returned an array
+        if (!Array.isArray(shipRes.data)) {
+           throw new Error("Backend did not return a list of shipments.");
+        }
+
+        const foundShipment = shipRes.data.find((s: any) => s.id === shipmentId);
+        if (!foundShipment) {
+           setError("Shipment not found in database.");
+        } else {
+           setShipment(foundShipment);
+        }
+
+        // 2. Fetch Transporters
+        const transRes = await api.get('/transporters');
+        
+        // 🚨 SAFETY CHECK: Ensure backend returned an array
+        if (Array.isArray(transRes.data)) {
+           setTransporters(transRes.data);
+        } else {
+           console.warn("No transporters found or invalid format.");
+           setTransporters([]);
+        }
+
       } catch (err: any) {
-        setError("Failed to load data. Check backend connection.");
-        console.error(err);
+        // 🚨 FIX: Extract the actual error message so you aren't guessing
+        const errMsg = err.response?.data?.detail || err.message || "Failed to load data from server.";
+        setError(`Error: ${errMsg}`);
+        console.error("Fetch Data Error:", err);
       } finally {
+        // 🚨 FIX: This MUST run, even if it crashes, to remove the loading screen
         setLoading(false);
       }
     };
+
     if (shipmentId) fetchData();
   }, [shipmentId]);
 
+  // Handle Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTransporter) return setError("Please select a transporter");
+    if (!shipmentId) return setError("Shipment ID is missing");
     
     setIsSubmitting(true);
     setError('');
@@ -46,30 +73,38 @@ const AssignTransporter: React.FC = () => {
     const userId = localStorage.getItem('user_id');
 
     try {
-      // 1. Post to Assignments Table
-      await api.post('/assignments/', null, {
-        params: {
-          shipment_id: shipmentId,
-          transporter_id: selectedTransporter,
-          assigned_by: userId
-        }
-      });
+      // 🚨 FIX 1: Send as JSON Body, NOT as params
+      const assignmentPayload = {
+        shipment_id: shipmentId,
+        transporter_id: selectedTransporter,
+        assigned_by: userId || ""
+      };
+      console.log("SENDING THIS TO BACKEND:", assignmentPayload);
 
-      // 2. Update Shipment Status to 'assigned'
-      await api.post('/status/', null, {
-        params: {
-          shipment_id: shipmentId,
-          status: 'assigned',
-          city: 'Operations Hub', // Simple string payload
-          updated_by: userId
-        }
-      });
+      // Ensure the URL exactly matches your backend route (we removed the trailing slash earlier)
+      await api.post('/assignments', assignmentPayload);
 
-      // Redirect back to dashboard
-      navigate('/operations');
+      // 🚨 FIX 2: Check if your status route also needs a JSON body!
+      // I am commenting this out temporarily. If your backend updates the status
+      // inside the '/assignments' route (like I showed in my previous code), 
+      // you don't need a second API call here!
+      
+      /*
+      const statusPayload = {
+        shipment_id: shipmentId,
+        status: 'ASSIGNED',
+        city: 'Operations Hub',
+        updated_by: userId || ""
+      };
+      await api.post('/status', statusPayload);
+      */
+
+      alert("Transporter Assigned Successfully!");
+      navigate('/operations'); // Redirect back to operations dashboard
     } catch (err: any) {
-      console.error(err);
-      setError("Assignment failed. Check console for details.");
+      console.error("Assignment Failed:", err);
+      // Show the actual error message from the backend if it exists
+      setError(err.response?.data?.detail || "Assignment failed. Check console for details.");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +153,6 @@ const AssignTransporter: React.FC = () => {
             <option value="" disabled>-- Select Verified Transporter --</option>
             {transporters.map(t => (
               <option key={t.id} value={t.id}>
-                {/* JUST THE COMPANY NAME AS REQUESTED */}
                 {t.company_name || "Private Transporter"}
               </option>
             ))}
@@ -129,7 +163,7 @@ const AssignTransporter: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting || !selectedTransporter}
-            className="w-full py-3 px-6 rounded-md text-white font-bold bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="w-full py-3 px-6 rounded-md text-white font-bold bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-md active:scale-[0.98]"
           >
             {isSubmitting ? 'Processing...' : 'Confirm & Lock Assignment'}
           </button>
