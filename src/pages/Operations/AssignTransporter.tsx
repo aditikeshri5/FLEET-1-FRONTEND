@@ -23,7 +23,7 @@ const AssignTransporter: React.FC = () => {
         if (!foundShipment) throw new Error("Shipment not found");
         setShipment(foundShipment);
 
-        // Fetch the list of transporters (now unfiltered from backend)
+        // Fetch transporters
         const transRes = await api.get('/transporters/');
         setTransporters(transRes.data);
       } catch (err: any) {
@@ -46,26 +46,22 @@ const AssignTransporter: React.FC = () => {
     const userId = localStorage.getItem('user_id');
 
     try {
-      // 1. Post to Assignments Table
-      await api.post('/assignments/', null, {
-        params: {
-          shipment_id: shipmentId,
-          transporter_id: selectedTransporter,
-          assigned_by: userId
-        }
+      // ✅ FIXED: Send JSON body instead of params
+      await api.post('/assignments/', {
+        shipment_id: shipmentId,
+        transporter_id: selectedTransporter,
+        assigned_by: userId
       });
 
-      // 2. Update Shipment Status to 'assigned'
-      await api.post('/status/', null, {
-        params: {
-          shipment_id: shipmentId,
-          status: 'assigned',
-          city: 'Operations Hub', // Simple string payload
-          updated_by: userId
-        }
+      // ✅ FIXED: Status update also via JSON body
+      await api.post('/status/', {
+        shipment_id: shipmentId,
+        status: 'assigned',
+        city: 'Operations Hub',
+        updated_by: userId
       });
 
-      // Redirect back to dashboard
+      // Redirect
       navigate('/operations');
     } catch (err: any) {
       console.error(err);
@@ -92,18 +88,20 @@ const AssignTransporter: React.FC = () => {
         </div>
       )}
 
-      {/* Shipment Preview Card */}
+      {/* Shipment Preview */}
       {shipment && (
         <div className="bg-gray-900 text-white rounded-lg p-6 shadow-md">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Active Shipment</p>
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-mono font-bold">{shipment.shipment_code}</h2>
-            <p className="text-sm font-medium">{shipment.pickup_city} to {shipment.receiver_city}</p>
+            <p className="text-sm font-medium">
+              {shipment.pickup_city} to {shipment.receiver_city}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Selection Form */}
+      {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg border border-gray-200 p-8 space-y-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -118,7 +116,6 @@ const AssignTransporter: React.FC = () => {
             <option value="" disabled>-- Select Verified Transporter --</option>
             {transporters.map(t => (
               <option key={t.id} value={t.id}>
-                {/* JUST THE COMPANY NAME AS REQUESTED */}
                 {t.company_name || "Private Transporter"}
               </option>
             ))}
