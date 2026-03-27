@@ -10,7 +10,7 @@ const Signup: React.FC = () => {
     full_name: '',
     phone: '',
     password: '',
-    role: 'manufacturer',
+    role: 'manufacturer', // Default starting value
     company_name: '',
     street: '',
     city: '',
@@ -32,26 +32,45 @@ const Signup: React.FC = () => {
     setError('');
 
     try {
-      const response = await api.post('/auth/signup', formData);
+      // 🚨 UPGRADE 1: Payload Cleanup
+      // If the user is Admin or Operations, we strip out the address fields 
+      // so the backend doesn't get confused by empty strings.
+      const payload = { ...formData };
+      if (payload.role === 'operations' || payload.role === 'admin') {
+        delete (payload as any).street;
+        delete (payload as any).city;
+        delete (payload as any).state;
+        delete (payload as any).pincode;
+      }
 
+      // 🚨 UPGRADE 2: The "Proof" Log
+      // Open your browser console (F12) when you click Sign Up. 
+      // This proves exactly what React is handing to Python.
+      console.log("🚀 SENDING PAYLOAD TO BACKEND:", payload);
+
+      const response = await api.post('/auth/signup', payload);
+
+      // Save session data
       localStorage.setItem('user_id', response.data.user_id);
-      localStorage.setItem('role', formData.role);
-      localStorage.setItem('full_name', formData.full_name);
+      localStorage.setItem('role', payload.role); // Save the exact role they signed up with
+      localStorage.setItem('full_name', payload.full_name);
 
-      if (formData.role === 'operations') navigate('/operations');
-      else if (formData.role === 'manufacturer') navigate('/manufacturer');
-      else if (formData.role === 'transporter') navigate('/transporter');
-      else if (formData.role === 'admin') navigate('/admin');
+      // Route them based on the role they requested
+      if (payload.role === 'operations') navigate('/operations');
+      else if (payload.role === 'manufacturer') navigate('/manufacturer');
+      else if (payload.role === 'transporter') navigate('/transporter');
+      else if (payload.role === 'admin') navigate('/admin');
       else navigate('/');
+
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Signup failed");
+      console.error("Signup Error:", err);
+      setError(err.response?.data?.detail || "Signup failed. Check console for details.");
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-[Inter]">
-
       {/* HEADER */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <h2 className="mt-6 text-4xl font-extrabold tracking-wider">
@@ -69,7 +88,6 @@ const Signup: React.FC = () => {
           onSubmit={handleSubmit}
           className="bg-white py-10 px-6 shadow-2xl rounded-2xl sm:px-10 border border-gray-100 space-y-4"
         >
-
           <h2 className="text-xl font-semibold text-center text-gray-800">
             Create Account
           </h2>
@@ -100,7 +118,7 @@ const Signup: React.FC = () => {
           />
 
           {/* PASSWORD */}
-          <div className="flex items-center border border-gray-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-[#D97706]">
+          <div className="flex items-center border border-gray-300 rounded-lg px-3 focus-within:ring-2 focus-within:ring-[#D97706] bg-white">
             <input
               type={showPassword ? 'text' : 'password'}
               name="password"
@@ -112,7 +130,7 @@ const Signup: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-500 hover:text-[#D97706]"
+              className="text-gray-500 hover:text-[#D97706] focus:outline-none"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -123,7 +141,7 @@ const Signup: React.FC = () => {
             name="role"
             value={formData.role}
             onChange={handleChange}
-            className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
+            className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706] bg-white"
           >
             <option value="manufacturer">Manufacturer</option>
             <option value="transporter">Transporter</option>
@@ -134,13 +152,13 @@ const Signup: React.FC = () => {
           {/* COMPANY */}
           <input
             name="company_name"
-            placeholder="Company Name"
+            placeholder="Company Name / Department"
             onChange={handleChange}
             required
             className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
           />
 
-          {/* ADDRESS */}
+          {/* ADDRESS (Only for Manufacturer/Transporter) */}
           {(formData.role === 'manufacturer' || formData.role === 'transporter') && (
             <div className="space-y-4 pt-2 border-t mt-2">
               <p className="text-xs font-bold text-gray-500 uppercase">
@@ -152,7 +170,7 @@ const Signup: React.FC = () => {
                 placeholder="Street / Area"
                 onChange={handleChange}
                 required
-                className="w-full border border-gray-300 p-2 rounded-lg outline-none"
+                className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
               />
 
               <div className="grid grid-cols-2 gap-2">
@@ -161,14 +179,14 @@ const Signup: React.FC = () => {
                   placeholder="City"
                   onChange={handleChange}
                   required
-                  className="border border-gray-300 p-2 rounded-lg outline-none"
+                  className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
                 />
                 <input
                   name="state"
                   placeholder="State"
                   onChange={handleChange}
                   required
-                  className="border border-gray-300 p-2 rounded-lg outline-none"
+                  className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
                 />
               </div>
 
@@ -177,7 +195,7 @@ const Signup: React.FC = () => {
                 placeholder="Pincode"
                 onChange={handleChange}
                 required
-                className="w-full border border-gray-300 p-2 rounded-lg outline-none"
+                className="w-full border border-gray-300 p-2 rounded-lg outline-none focus:ring-2 focus:ring-[#D97706]"
               />
             </div>
           )}
@@ -186,11 +204,10 @@ const Signup: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#c46a05] disabled:opacity-50 transition"
+            className="w-full py-2 mt-4 bg-[#D97706] text-white rounded-lg hover:bg-[#c46a05] disabled:opacity-50 transition font-semibold"
           >
             {isSubmitting ? 'Creating account...' : 'Sign Up'}
           </button>
-
         </form>
       </div>
     </div>

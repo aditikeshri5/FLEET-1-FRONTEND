@@ -22,6 +22,7 @@ import StatusUpdate from './pages/Transporter/StatusUpdate';
 import OperationsDashboard from './pages/Operations/OperationsDashboard';
 import AssignTransporter from './pages/Operations/AssignTransporter';
 import CreateHandover from './pages/Operations/CreateHandover';
+import TrackShipment from './pages/Operations/TrackShipment'; 
 
 // Admin Pages
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -60,6 +61,7 @@ const App = () => {
               <Route path="/operations" element={<OperationsDashboard />} />
               <Route path="/operations/assign/:shipmentId" element={<AssignTransporter />} />
               <Route path="/operations/handover/:shipmentId" element={<CreateHandover />} />
+              <Route path="/operations/track/:id" element={<TrackShipment />} />
             </Route>
 
             {/* Admin Routes */}
