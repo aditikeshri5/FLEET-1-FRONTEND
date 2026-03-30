@@ -7,29 +7,24 @@ const CreateShipment: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const [useDefaultAddress, setUseDefaultAddress] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(''); // Added to show errors on screen
 
   const [formData, setFormData] = useState({
-    // Pickup info
     pickup_address: '',
     pickup_city: '',
     pickup_pincode: '',
     pickup_contact: '',
-
-    // Receiver info
     receiver_name: '',
     receiver_phone: '',
     receiver_address: '',
     receiver_city: '',
     receiver_pincode: '',
-
-    // Shipment details
     goods_description: '',
     quantity: 1,           
     weight: '',            
     shipment_code: '',     
   });
 
-  // 1. Fetch the user's saved profile once when page loads
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -45,7 +40,6 @@ const CreateShipment: React.FC = () => {
     fetchProfile();
   }, []);
 
-  // 2. Handle the "Use Registered Address" Checkbox
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
     setUseDefaultAddress(checked);
@@ -76,23 +70,47 @@ const CreateShipment: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMsg(''); // clear previous errors
+
     try {
       const userId = localStorage.getItem('user_id');
       
-      // Ensure numeric fields are correctly typed before sending
+      if (!userId) {
+        setIsSubmitting(false);
+        return setErrorMsg("Authentication Error: Missing user_id in localStorage. Please log in again.");
+      }
+
+      // 🚨 FIX: Auto-generate a dummy shipment code if the user didn't type one,
+      // just in case your backend database requires it!
+      const generatedCode = formData.shipment_code || `SHP-${Math.floor(Math.random() * 100000)}`;
+
       const submissionData = {
         ...formData,
+        shipment_code: generatedCode, 
         manufacturer_id: userId,
-        weight: parseFloat(formData.weight) || 0,
+        weight: parseFloat(formData.weight.toString()) || 0,
         quantity: parseInt(formData.quantity.toString()) || 1,
       };
 
-      await api.post('/shipments/create', submissionData);
+      console.log("🚀 SENDING PAYLOAD:", submissionData);
+
+      // Make sure this route perfectly matches your FastAPI @router.post("")
+      await api.post('/shipments/create', submissionData); 
+      
       alert("Shipment Created Successfully!");
       navigate('/manufacturer'); 
-    } catch (err) {
-      console.error(err);
-      alert("Error creating shipment. Please check the console for details.");
+    } catch (err: any) {
+      // 🚨 THE ULTIMATE DEBUG LINES 🚨
+      console.error("🔥 BACKEND REJECTED IT:", err.response?.data);
+      
+      // Show the error on the screen so you don't have to guess
+      const backendError = err.response?.data?.detail;
+      setErrorMsg(
+        typeof backendError === 'string' 
+          ? backendError 
+          : JSON.stringify(backendError) || "Network error. Check console."
+      );
+      
       setIsSubmitting(false);
     }
   };
@@ -104,6 +122,13 @@ const CreateShipment: React.FC = () => {
           <h1 className="text-xl font-bold text-white">Create New Shipment</h1>
           <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition">← Back</button>
         </div>
+
+        {/* 🚨 Added Error Display Banner */}
+        {errorMsg && (
+          <div className="bg-red-50 text-red-700 p-4 m-8 mb-0 rounded-md border border-red-200 font-mono text-sm">
+            ERROR: {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-8 space-y-10">
           
@@ -203,6 +228,6 @@ const CreateShipment: React.FC = () => {
       </div>
     </div>
   );
-}; // 🚨 This curly brace was missing!
+};
 
 export default CreateShipment;

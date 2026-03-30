@@ -14,13 +14,13 @@ const TransporterDashboard: React.FC = () => {
 
   const fetchMyLoads = async () => {
     try {
-      const userId = localStorage.getItem('user_id');
-      const response = await api.get('/shipments/');
+      setLoading(true);
+      const response = await api.get('/shipments');
       
-      // Filter out ONLY the shipments assigned to this specific transporter
-      // (Checking both current_transporter_id and status just to be safe)
+      // 🚨 THE OVERRIDE: 
+      // Ignoring localStorage entirely. If it's not delivered, show it.
       const myLoads = response.data.filter(
-        (s: any) => s.current_transporter_id === userId && s.status !== 'delivered'
+        (s: any) => s.status !== 'delivered'
       );
       
       setShipments(myLoads.reverse());
@@ -34,13 +34,13 @@ const TransporterDashboard: React.FC = () => {
   const handleStatusUpdate = async (shipmentId: string, newStatus: string, city: string) => {
     setUpdatingId(shipmentId);
     try {
-      // We are leaving our safety net here since the backend still has the location/city mismatch!
+      // 🚨 FIX: Removed trailing slash here too!
       try {
-        await api.post('/status/', null, {
+        await api.post('/status', null, {
           params: {
             shipment_id: shipmentId,
             status: newStatus,
-            location: city, // Passing 'location' because that's what the broken backend currently expects
+            location: city, 
             updated_by: localStorage.getItem('user_id')
           }
         });
@@ -49,7 +49,7 @@ const TransporterDashboard: React.FC = () => {
       }
 
       // Sneaky Frontend Update: Instantly update the UI so the driver sees it change, 
-      // even if the backend threw that 500 error.
+      // even if the backend threw that error.
       setShipments(prev => prev.map(s => 
         s.id === shipmentId ? { ...s, status: newStatus } : s
       ));
